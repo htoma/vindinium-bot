@@ -34,15 +34,31 @@ type MapElement =
 type Map = 
     { tiles: int
       els: MapElement[,] }
-    with
+
+type Game() = 
+    static member ParseResponse (response: string) =
+        let parsed = Parser.Parse response
+        let myPos = { x=parsed.Hero.SpawnPos.X; y=parsed.Hero.SpawnPos.Y }
+        Game.parseMap parsed.Game.Board.Size parsed.Game.Board.Tiles
+
+    static member private ParseLine (dim: int) (line: char[]) =
+        line
+        |> Seq.splitInto dim
+        |> Seq.map (fun v ->
+                    match v.[0], v.[1] with
+                    | '#','#' -> MapElement.Wood
+                    | '@',_ -> MapElement.Hero
+                    | '[',']' -> MapElement.Tavern
+                    | '$','-' -> MapElement.GoldFree
+                    | '$',_ -> MapElement.GoldTaken
+                    | _ -> MapElement.Free)
+
     static member parseMap (dim: int) (content: string) =
-        dim
+        let els = content
+                    |> Seq.splitInto dim
+                    |> Seq.map (fun v -> Game.ParseLine dim v)
+                    |> array2D
+        {tiles=dim; els=els}
 
 
-let parseResponse (response: string) =
-    let parsed = Parser.Parse response
-    if parsed.Game.Finished || parsed.Hero.Crashed then ignore()
-    else
-        let myPos = { x=parsed.Hero.SpawnPos.X, y=parsed.Hero.SpawnPos.Y }        
- 
-let value = Parser.Parse(IO.File.ReadAllText ("doc.json"))
+Game.ParseResponse (IO.File.ReadAllText ("doc.json"))
