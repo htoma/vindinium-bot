@@ -1,4 +1,4 @@
-﻿#I "../packages"
+﻿#I"../packages"
 #r "FSharp.Data.2.3.0/lib/net40/FSharp.Data.dll"
 
 open System
@@ -10,7 +10,7 @@ type Pos =
     { x: int
       y: int }
 
-type Hero = 
+type Hero =
     { pos: Pos
       life: int
       spawn: Pos
@@ -23,7 +23,7 @@ type Move =
     | South
     | West
 
-type MapElement = 
+type MapElement =
     | Free
     | Wood
     | Tavern
@@ -31,34 +31,70 @@ type MapElement =
     | GoldTaken
     | Hero
 
-type Map = 
-    { tiles: int
-      els: MapElement[,] }
+type Map =
+    { dim: int
+      tiles: MapElement[,] }
 
-type Game() = 
-    static member ParseResponse (response: string) =
-        let parsed = Parser.Parse response
-        let myPos = { x=parsed.Hero.SpawnPos.X; y=parsed.Hero.SpawnPos.Y }
-        Game.parseMap parsed.Game.Board.Size parsed.Game.Board.Tiles
+type State = 
+    { pos: Pos
+      map: Map }
 
+type Game () =
+    static member Random = System. Random()
     static member private ParseLine (dim: int) (line: char[]) =
         line
         |> Seq.splitInto dim
-        |> Seq.map (fun v ->
+        |> Seq.map ( fun v ->
                     match v.[0], v.[1] with
-                    | '#','#' -> MapElement.Wood
+                    | '#', '#' -> MapElement.Wood
                     | '@',_ -> MapElement.Hero
-                    | '[',']' -> MapElement.Tavern
-                    | '$','-' -> MapElement.GoldFree
+                    | '[', ']' -> MapElement.Tavern
+                    | '$', '-' -> MapElement.GoldFree
                     | '$',_ -> MapElement.GoldTaken
                     | _ -> MapElement.Free)
 
-    static member parseMap (dim: int) (content: string) =
+    static member private PosFromMove (pos: Pos) (move: Move) =
+        match move with
+        | Move.Stay -> pos
+        | Move.North -> {pos with x=pos.x-1}
+        | Move.East -> {pos with y=pos.y+1}
+        | Move.South -> {pos with x=pos.x+1}
+        | Move.West -> {pos with y=pos.y-1}
+
+    static member private PosValid (pos: Pos) (map: Map) =
+        pos.x >= 0 &&
+        pos.x < map.dim &&
+        pos.y >= 0 &&
+        pos.y < map.dim &&
+        map.tiles.[pos.x,pos.y]=MapElement.Free
+
+    static member private ParseMap (dim: int) (content: string) =
         let els = content
                     |> Seq.splitInto dim
-                    |> Seq.map (fun v -> Game.ParseLine dim v)
+                    |> Seq.map ( fun v -> Game.ParseLine dim v)
                     |> array2D
-        {tiles=dim; els=els}
+        {dim=dim; tiles=els}
 
+    static member GetState (response: string) =
+        let parsed = Parser.Parse response
+        let myPos = { x=parsed.Hero.Pos.X; y=parsed.Hero.Pos.Y }
+        let map = Game.ParseMap parsed.Game.Board.Size parsed.Game.Board.Tiles
+        { pos=myPos; map=map}
+        
+    static member ChooseMoveWalkie (state: State) =
+        let moves =
+            [ Move.North
+              Move.East
+              Move.South
+              Move.West ]
+            |> List.map ( fun d -> d, (Game.PosFromMove state.pos d))
+            |> List.filter ( fun (_,p) -> (Game.PosValid p state.map) )
+            |> List.map ( fun (d,_) -> d)
+        match moves.Length with
+        | 0 -> Move.Stay
+        | n -> moves.[ Game.Random.Next(0, n)]
+                           
 
-Game.ParseResponse (IO.File.ReadAllText ("doc.json"))
+let state = Game.GetState(IO.File.ReadAllText @"C:\work\vindinium-bot\BlueBottle\doc.json")
+Game.ChooseMoveWalkie state
+
