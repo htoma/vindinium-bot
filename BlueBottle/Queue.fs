@@ -1,13 +1,15 @@
 ﻿module Queue
 
-type Queue<'a>() =
+type Queue<'a> when 'a : equality () =
     let mutable list = []  
     member __.push (key: 'a) (value: int) =
         let rec push (list: ('a*int) list) =
             match list with
             | [] -> [key,value]
+            | (k,v)::tail when k=key ->
+                (key,value)::tail
             | (k,v)::tail ->
-                if value>=v then
+                if value>v then
                     (key,value)::(k,v)::tail
                 else
                     (k,v)::(push tail)
@@ -19,5 +21,6 @@ type Queue<'a>() =
         | [] -> failwith "Empty queue"
         | head::tail ->
             list<-tail
-            head    
+            head  
+          
 

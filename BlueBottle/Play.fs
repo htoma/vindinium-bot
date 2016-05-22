@@ -3,15 +3,13 @@
 open System
 open FSharp.Data
 open Microsoft.FSharp.Reflection
+open Algorithms
+
 let toString (x:'a) = 
     match FSharpValue.GetUnionFields(x, typeof<'a>) with
     | case, _ -> case.Name
 
 type Parser = JsonProvider<"doc.json">
-
-type Pos =
-    { x: int
-      y: int }
 
 type Hero =
     { pos: Pos
