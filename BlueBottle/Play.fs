@@ -39,12 +39,25 @@ type Map =
 type State = 
     { finished: bool      
       pos: Pos
+      spawnPos: Pos
       map: Map
       gold: int
       maxGold: int
       playUrl: string
       showUrl: string
       turn: int }
+
+let closestMine (pos: Pos) (map: Map) =
+    map.tiles
+    |> Array2D.mapi (fun i j v -> (i,j,v))
+    |> Seq.cast<int*int*MapElement>
+    |> Seq.filter (fun (i,j,v)-> (v,[MapElement.GoldFree;MapElement.GoldTaken]) ||> List.contains)
+    |> Seq.sortBy (fun (i,j,v) -> {x=i;y=j} |> manhattanDistance pos)
+    |> Seq.map (fun (i,j,_) -> {x=i;y=j})
+    |> Seq.head
+
+let pathElementValid (el: MapElement) =
+    el=MapElement.Free || el=MapElement.Hero
 
 type Game () =
     static member Random = System. Random()
@@ -87,7 +100,6 @@ type Game () =
     static member GetState (response: string) =
         let parsed = Parser.Parse response
         let myPos = { x=parsed.Hero.Pos.X; y=parsed.Hero.Pos.Y }
-        printfn "Pos: %ix%i" myPos.x myPos.y
         let map = Game.ParseMap parsed.Game.Board.Size parsed.Game.Board.Tiles
         let finished = parsed.Game.Finished        
         let maxGold = parsed.Game.Heroes
@@ -95,6 +107,7 @@ type Game () =
                         |> Array.max
         { finished=finished
           pos=myPos
+          spawnPos={ x=parsed.Hero.SpawnPos.X; y=parsed.Hero.SpawnPos.Y }
           map=map
           gold=parsed.Hero.Gold
           maxGold=maxGold
@@ -140,18 +153,47 @@ let makeMove (key: string) (url: string) (move: Move) =
           "dir", toString move]
     makeWebRequest url query
 
+let linkMove (pos: Pos) (target: Pos) =
+    match pos.x-target.x,pos.y-target.y with
+    | -1,_ -> Move.South
+    | 1,_ -> Move.North
+    | _,1 -> Move.West
+    | _,-1 -> Move.East
+    | _ -> Move.Stay
+
 let play (key: string) =    
+    // initiate game
     let response = initiateGame key
+
+    // get initial state
     let initial = Game.GetState response
-    let rec playTurn (state: State) (turn: int) =
+
+    // choose current target: the closest mine
+    let currentTarget = closestMine initial.pos initial.map
+
+    // choose path to follow
+    let targetPath = 
+        match (dijkstra initial.map.dim initial.map.tiles initial.pos currentTarget pathElementValid) with
+        | None -> failwith "Could not find path"
+        | Some path -> path
+
+    let rec playTurn (state: State) (turn: int) (path: Pos list) =
         if state.finished || turn=Game.Turns then
             printfn "Finished, your gold: %i and winner gold: %i" state.gold state.maxGold
             printfn "Show at %s" state.showUrl
         else
             printfn "Turn: %i" state.turn
-            let move = Game.ChooseMoveWalkie state
+            let move,rest = 
+                match path with
+                | [] -> Move.Stay,[]
+                | head::tail -> 
+                    match state.pos with
+                    | original when original=state.spawnPos -> 
+                        (linkMove original path.Tail.Head),targetPath
+                    | other -> (linkMove other path.Tail.Head),tail
+                    
             let response = makeMove key state.playUrl move
             let state = Game.GetState response
-            playTurn state (turn+1)
-    playTurn initial 0
+            playTurn state (turn+1) rest
+    playTurn initial 0 targetPath
 

@@ -1,5 +1,6 @@
 ﻿module Algorithms
 
+open System
 open Queue
 
 type Map<'a, 'b when 'a : comparison> with
@@ -25,6 +26,9 @@ let neighbors (dim: int) (matrix: 'a[,]) (pos: Pos) =
       {pos with y=pos.y-1} ]
     |> List.filter (fun p -> p.x>=0 && p.x<dim && p.y>=0 && p.y<dim)
 
+let manhattanDistance (start: Pos) (target: Pos) = 
+    Math.Abs(start.x-target.x) + Math.Abs(start.y-target.y)
+
 let dijkstra (dim: int) (matrix: 'a[,]) (start: Pos) (target: Pos) (shouldSelect: 'a->bool) =    
     let frontier = Queue<Pos>()
     frontier.push start 0
@@ -44,15 +48,17 @@ let dijkstra (dim: int) (matrix: 'a[,]) (start: Pos) (target: Pos) (shouldSelect
                 | start -> Some(path)
                 | _ -> None
             else
-                neighbors dim matrix current
+                let nbs = neighbors dim matrix current
+                nbs
                 |> List.filter (fun p -> visited.Contains(p) |> not)
-                |> List.filter (fun p -> shouldSelect matrix.[p.x,p.y])
+                |> List.filter (fun p -> shouldSelect matrix.[p.x,p.y]||p=target)
                 |> List.iter (fun p ->
                             let newCost = cost.[current]+1
-                            if (cost.ContainsKey current |> not) ||
-                                cost.[current]> newCost then
-                                 cost<-cost.Update(current,newCost)
+                            if (cost.ContainsKey p |> not) ||
+                                cost.[p]> newCost then
+                                 cost<-cost.Update(p,newCost)
                                  cameFrom<-cameFrom.Update(p,Some(current))
+                                 let priority = newCost + (manhattanDistance p target)
                                  frontier.push p newCost)                                 
                 search()
 
