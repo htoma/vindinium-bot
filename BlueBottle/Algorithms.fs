@@ -41,9 +41,8 @@ let dijkstra (dim: int) (matrix: 'a[,]) (start: Pos) (target: Pos) (shouldSelect
             visited<-visited.Add(current)
             if current=target then 
                 let path = createRoute cameFrom target
-                match path.Head with
-                | start -> Some(path)
-                | _ -> None
+                if path.Head=start then Some(path)
+                else None
             else
                 let nbs = neighbors dim matrix current
                 nbs

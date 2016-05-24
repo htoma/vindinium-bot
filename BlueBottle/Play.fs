@@ -8,24 +8,13 @@ open Models
 open Algorithms
 open Helpers
 open Game
-
-let makeWebRequest (url: string) (query: (string*string) list) = 
-    try
-        let result = Http.Request(url=url, query=query, httpMethod="POST")
-        match result.StatusCode, result.Body with
-        | 200, HttpResponseBody.Text text -> text
-        | rc, _ when rc >= 400 && rc < 500 -> failwithf "Http Response code: %i, Wrong key, game is already finished, too slow" rc
-        | 500, _ -> failwith "Something wrong on the server side"
-        | code, _ -> failwithf "Failed with HTTP code: %i" code
-    with
-        | :? Net.WebException as ex ->
-            failwithf "WebException %A" ex
             
 let initiateGame (key: string) =
+    let random = Random(int DateTime.UtcNow.Ticks)
     let query = 
         [ "key", key
           "turns", string Game.Turns
-          "map", "m2"]
+          "map", sprintf "m%i" (random.Next(1, 6))]
     makeWebRequest Game.Url query
 
 let makeMove (key: string) (url: string) (move: Move) = 
@@ -88,8 +77,8 @@ let play (key: string) =
                 | [] -> Move.Stay,[]
                 | [v] -> Move.Stay,[]
                 | head::tail -> 
-                    (linkMove state.pos path.Tail.Head),tail
-                    
+                    (linkMove state.pos tail.Head),tail
+            printfn "Move: %A" move        
             let response = makeMove key state.playUrl move
             let state = Game.GetState response
             playTurn state (turn+1) rest

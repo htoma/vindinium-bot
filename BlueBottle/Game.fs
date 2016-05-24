@@ -22,7 +22,7 @@ type Game () =
                     | '#', '#' -> MapElement.Wood
                     | '@',_ -> MapElement.Hero
                     | '[', ']' -> MapElement.Tavern
-                    | '$','-' -> MapElement.GoldFree
+                    | '$','-' -> MapElement.GoldMe
                     | '$',_ -> MapElement.GoldTaken
                     | _ -> MapElement.Free)
 

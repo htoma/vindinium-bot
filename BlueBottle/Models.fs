@@ -21,7 +21,7 @@ type MapElement =
     | Free
     | Wood
     | Tavern
-    | GoldFree
+    | GoldMe
     | GoldTaken
     | Hero
 
