@@ -5,10 +5,12 @@ type Pos =
       y: int }
 
 type Hero =
-    { pos: Pos
-      life: int
+    { id: int 
+      pos: Pos
       spawn: Pos
-      crashed: bool }
+      life: int
+      mines: int
+      gold: int }
 
 type Move =
     | Stay
@@ -21,8 +23,8 @@ type MapElement =
     | Free
     | Wood
     | Tavern
-    | GoldMe
-    | GoldTaken
+    | GoldFree
+    | GoldHero of int
     | Hero
 
 type Map =
@@ -30,13 +32,15 @@ type Map =
       tiles: MapElement[,] }
 
 type State = 
-    { id: int
-      finished: bool      
-      pos: Pos
-      spawnPos: Pos
+    { finished: bool
+      me: Hero
+      heroes: Hero list      
       map: Map
-      gold: int
-      maxGold: int
       playUrl: string
       showUrl: string
       turn: int }
+      with 
+      member this.maxGold() = 
+        this.heroes
+        |> List.map (fun h -> h.gold)
+        |> List.max

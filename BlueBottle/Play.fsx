@@ -62,4 +62,3 @@ open Play
 //dijkstra state.map.dim state.map.tiles state.pos target check
 
 Play.play ""
-

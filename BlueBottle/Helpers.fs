@@ -11,11 +11,11 @@ let toString (x:'a) =
     match FSharpValue.GetUnionFields(x, typeof<'a>) with
     | case, _ -> case.Name
 
-let closestMine (pos: Pos) (map: Map) =
+let closestTarget (pos: Pos) (map: Map) (selector:MapElement->bool) =
     map.tiles
     |> Array2D.mapi (fun i j v -> (i,j,v))
     |> Seq.cast<int*int*MapElement>
-    |> Seq.filter (fun (i,j,v)-> (v,[MapElement.GoldMe;MapElement.GoldTaken]) ||> List.contains)
+    |> Seq.filter (fun (i,j,v)-> selector v)
     |> Seq.sortBy (fun (i,j,v) -> {x=i;y=j} |> manhattanDistance pos)
     |> Seq.map (fun (i,j,_) -> {x=i;y=j})
     |> Seq.head

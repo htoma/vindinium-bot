@@ -22,8 +22,8 @@ type Game () =
                     | '#', '#' -> MapElement.Wood
                     | '@',_ -> MapElement.Hero
                     | '[', ']' -> MapElement.Tavern
-                    | '$','-' -> MapElement.GoldMe
-                    | '$',_ -> MapElement.GoldTaken
+                    | '$','-' -> MapElement.GoldFree
+                    | '$',i -> MapElement.GoldHero (Int32.Parse(i.ToString()))
                     | _ -> MapElement.Free)
 
     static member private PosFromMove (pos: Pos) (move: Move) =
@@ -53,16 +53,22 @@ type Game () =
         let myPos = { x=parsed.Hero.Pos.X; y=parsed.Hero.Pos.Y }
         let map = Game.ParseMap parsed.Game.Board.Size parsed.Game.Board.Tiles
         let finished = parsed.Game.Finished        
-        let maxGold = parsed.Game.Heroes
-                        |> Array.map (fun h -> h.Gold)
-                        |> Array.max
-        { id=parsed.Hero.Id
-          finished=finished
-          pos=myPos
-          spawnPos={ x=parsed.Hero.SpawnPos.X; y=parsed.Hero.SpawnPos.Y }
+        { finished=finished
+          me={ id=parsed.Hero.Id
+               pos={ x=parsed.Hero.Pos.X; y=parsed.Hero.Pos.Y }
+               spawn={ x=parsed.Hero.SpawnPos.X; y=parsed.Hero.SpawnPos.Y } 
+               life=parsed.Hero.Life
+               mines=parsed.Hero.MineCount
+               gold=parsed.Hero.Gold }
+          heroes=parsed.Game.Heroes 
+                 |> Array.map (fun v -> { id=parsed.Hero.Id
+                                          pos={ x=parsed.Hero.Pos.X; y=parsed.Hero.Pos.Y }
+                                          spawn={ x=parsed.Hero.SpawnPos.X; y=parsed.Hero.SpawnPos.Y } 
+                                          life=parsed.Hero.Life
+                                          mines=parsed.Hero.MineCount
+                                          gold=parsed.Hero.Gold })
+                 |> List.ofArray
           map=map
-          gold=parsed.Hero.Gold
-          maxGold=maxGold
           playUrl=parsed.PlayUrl
           showUrl=parsed.ViewUrl
           turn=parsed.Game.Turn }
@@ -73,7 +79,7 @@ type Game () =
               Move.East
               Move.South
               Move.West ]
-            |> List.map ( fun d -> d, (Game.PosFromMove state.pos d))
+            |> List.map ( fun d -> d, (Game.PosFromMove state.me.pos d))
             |> List.filter ( fun (_,p) -> (Game.PosValid p state.map) )
             |> List.map ( fun (d,_) -> d)
         match moves.Length with
