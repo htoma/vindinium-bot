@@ -6,16 +6,6 @@ open System
 open FSharp.Data
 open Algorithms
 open Play
-Play.play "h2srtkkn"
-
-//let pos = [|(0,0);(0,1);(0,2);(1,2);(1,1);(1,0);(2,0);(2,1);(2,2)|]
-//let mutable map = Map.empty.Add({x=0;y=0},None)
-//pos
-//|> Array.map (fun (x,y) -> {x=x;y=y})
-//|> Array.windowed 2
-//|> Array.iter (fun v -> map <- map.Add(v.[1],Some(v.[0])))
-//
-//createRoute map {x=2;y=2}
 
 //let dim = 6
 //let matrix = 
@@ -59,7 +49,7 @@ Play.play "h2srtkkn"
 //          |> List.splitInto dim
 //          |> array2D
 //
-//    
+    
 //dijkstra 6 matrix {x=0;y=0} {x=5;y=5} check
 
 //let check (el: MapElement) =

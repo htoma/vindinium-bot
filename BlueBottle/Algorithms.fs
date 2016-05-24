@@ -2,15 +2,12 @@
 
 open System
 open Queue
+open Models
 
 type Map<'a, 'b when 'a : comparison> with
     member t.Update (key: 'a, value: 'b) =
         let tmp=t.Remove key
         t.Add(key,value)
-
-type Pos =
-    { x: int
-      y: int }
 
 let createRoute (cameFrom: Map<Pos,Pos option>) (target: Pos) =
     let rec search (route: Pos list) =
@@ -53,12 +50,12 @@ let dijkstra (dim: int) (matrix: 'a[,]) (start: Pos) (target: Pos) (shouldSelect
                 |> List.filter (fun p -> visited.Contains(p) |> not)
                 |> List.filter (fun p -> shouldSelect matrix.[p.x,p.y]||p=target)
                 |> List.iter (fun p ->
-                            let newCost = cost.[current]+1
+                            let newCost = manhattanDistance p target
                             if (cost.ContainsKey p |> not) ||
                                 cost.[p]> newCost then
                                  cost<-cost.Update(p,newCost)
                                  cameFrom<-cameFrom.Update(p,Some(current))
-                                 let priority = newCost + (manhattanDistance p target)
+                                 let priority = newCost
                                  frontier.push p newCost)                                 
                 search()
 

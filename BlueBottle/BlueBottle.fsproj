@@ -57,7 +57,10 @@
     <Compile Include="AssemblyInfo.fs" />
     <None Include="doc.json" />
     <Compile Include="Queue.fs" />
+    <Compile Include="Models.fs" />
     <Compile Include="Algorithms.fs" />
+    <Compile Include="Helpers.fs" />
+    <Compile Include="Game.fs" />
     <Compile Include="Play.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
