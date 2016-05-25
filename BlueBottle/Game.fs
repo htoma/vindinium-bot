@@ -12,7 +12,8 @@ type Parser = JsonProvider<"doc.json">
 
 type Game () =
     static member Random = System. Random()
-    static member Url = @"http://vindinium.org/api/training"
+    static member TrainingUrl = @"http://vindinium.org/api/training"
+    static member ArenaUrl = @"http://vindinium.org/api/arena"
     static member Turns = 100
     static member private ParseLine (dim: int) (line: char[]) =
         line
@@ -61,12 +62,12 @@ type Game () =
                mines=parsed.Hero.MineCount
                gold=parsed.Hero.Gold }
           heroes=parsed.Game.Heroes 
-                 |> Array.map (fun v -> { id=parsed.Hero.Id
-                                          pos={ x=parsed.Hero.Pos.X; y=parsed.Hero.Pos.Y }
-                                          spawn={ x=parsed.Hero.SpawnPos.X; y=parsed.Hero.SpawnPos.Y } 
-                                          life=parsed.Hero.Life
-                                          mines=parsed.Hero.MineCount
-                                          gold=parsed.Hero.Gold })
+                 |> Array.map (fun v -> { id=v.Id
+                                          pos={ x=v.Pos.X; y=v.Pos.Y }
+                                          spawn={ x=v.SpawnPos.X; y=v.SpawnPos.Y } 
+                                          life=v.Life
+                                          mines=v.MineCount
+                                          gold=v.Gold })
                  |> List.ofArray
           map=map
           playUrl=parsed.PlayUrl

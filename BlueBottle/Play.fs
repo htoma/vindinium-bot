@@ -12,11 +12,11 @@ open Game
 let initiateGame (key: string) =
     let random = Random(int DateTime.UtcNow.Ticks)
     let query = 
-        [ "key", key
-          "turns", string Game.Turns
+        [ "key", key ]
+          //"turns", string Game.Turns
           //"map", sprintf "m%i" (random.Next(1, 6))]
-          "map", "m5"]
-    makeWebRequest Game.Url query
+          //"map", "m5"]
+    makeWebRequest Game.ArenaUrl query
 
 let makeMove (key: string) (url: string) (move: Move) = 
     let query = 
@@ -137,18 +137,23 @@ let play (key: string) =
     // get initial state
     let initial = Game.GetState response
 
-    storeMap @"c:\temp\res.txt" initial.map.dim initial.map.tiles
+    let file = @"c:\temp\res.txt"
+    storeMap file initial.map.dim initial.map.tiles
 
     printfn "Bot ID: %i" initial.me.id
     printfn "At: %ix%i" initial.me.pos.x initial.me.pos.y
     printfn "TV @ %s" initial.showUrl
 
+    IO.File.AppendAllText(file, sprintf "\r\nURL: %s" initial.showUrl)
+
     let rec playTurn (state: State) (turn: int) (action: Action) (path: Pos list) =
         printfn "Turn: %i" state.turn
         printfn "Current pos: %ix%i" state.me.pos.x state.me.pos.y
         printfn "Life: %i" state.me.life
-        if state.finished || turn=Game.Turns then
+        if state.finished then
+            let won = state.me.gold = state.maxGold()
             printfn "Game Over, your gold: %i and winner gold: %i" state.me.gold (state.maxGold())
+            won
         else
             let actualAction,actualPath = 
                 if state.me.pos=state.me.spawn then Action.NoAction,[]
