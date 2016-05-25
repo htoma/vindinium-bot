@@ -22,7 +22,7 @@ type Game () =
                     | '#', '#' -> MapElement.Wood
                     | '@',_ -> MapElement.Hero
                     | '[', ']' -> MapElement.Tavern
-                    | '$','-' -> MapElement.GoldFree
+                    | '$','-' -> MapElement.GoldF
                     | '$',i -> MapElement.GoldHero (Int32.Parse(i.ToString()))
                     | _ -> MapElement.Free)
 

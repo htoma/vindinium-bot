@@ -19,11 +19,19 @@ type Move =
     | South
     | West
 
+type Action =
+    | NoAction
+    | Fight
+    | Drink
+    | Mine
+    | LookupDrink
+    | LookupMine
+
 type MapElement =
     | Free
     | Wood
     | Tavern
-    | GoldFree
+    | GoldF
     | GoldHero of int
     | Hero
 

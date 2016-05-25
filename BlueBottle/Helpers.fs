@@ -18,7 +18,7 @@ let closestTarget (pos: Pos) (map: Map) (selector:MapElement->bool) =
     |> Seq.filter (fun (i,j,v)-> selector v)
     |> Seq.sortBy (fun (i,j,v) -> {x=i;y=j} |> manhattanDistance pos)
     |> Seq.map (fun (i,j,_) -> {x=i;y=j})
-    |> Seq.head
+    |> Seq.tryPick Some
 
 let pathElementValid (el: MapElement) =
     el=MapElement.Free || el=MapElement.Hero
@@ -47,3 +47,4 @@ let makeWebRequest (url: string) (query: (string*string) list) =
     with
         | :? Net.WebException as ex ->
             failwithf "WebException %A" ex
+
