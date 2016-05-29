@@ -60,7 +60,53 @@ let dijkstra (dim: int) (matrix: 'a[,]) (start: Pos) (target: Pos) (shouldSelect
 
     search()
 
+  
+let astar (dim: int) (matrix: 'a[,]) (start: Pos) (target: Pos) (shouldSelect: 'a->bool) =    
+    let mutable openSet = [start] |> Set.ofList
+    let mutable closedSet = [] |> Set.ofList
+    let mutable cameFrom = Map.empty.Add(start, None)
+
+    //the cost of getting from the start node to that node
+    let mutable gScore = Map.empty.Add(start,0)
+
+    //the cost of getting from start to target by passing through this node
+    let fScore = Queue<Pos>()
+    fScore.push start (manhattanDistance start target)
     
+    let rec search () =
+        match fScore.empty() with
+        | true -> None
+        | false ->
+            let (current,value) = fScore.pop()
+            if current=target then
+                let path = createRoute cameFrom target
+                if path.Head=start then Some(path)
+                else None
+            else
+                openSet<-openSet.Remove(current)
+                closedSet<-closedSet.Add(current)
+                let nbs = neighbors dim matrix current
+                nbs
+                |> List.filter (fun p -> closedSet.Contains(p) |> not)
+                |> List.filter (fun p -> shouldSelect matrix.[p.x,p.y]||p=target)
+                |> List.iter (fun p -> 
+                        let tmp = gScore.[current] + 1
+                        let isNew = openSet.Contains p |> not 
+                        if isNew then
+                            openSet<-openSet.Add(p) // Discover a new node
+                        if isNew || tmp < gScore.[p] then
+                            // This path is the best until now. Record it!
+                            cameFrom<-cameFrom.Update(p,Some(current))
+                            gScore<-gScore.Update(p,tmp)
+                            fScore.push p (gScore.[p] + (manhattanDistance p target)))
+                search()
+    search()
+            
+
+
+
+    
+     
     
 
 

@@ -9,7 +9,7 @@ type Queue<'a> when 'a : equality () =
             | (k,v)::tail when k=key ->
                 (key,value)::tail
             | (k,v)::tail ->
-                if value>v then
+                if value<v then
                     (key,value)::(k,v)::tail
                 else
                     (k,v)::(push tail)

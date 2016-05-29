@@ -72,7 +72,7 @@ let continueMoveToTarget (state: State) (action: Action) (path: Pos list) =
         | [] -> failwith "No elements in the path to move to"
 
 let newMoveToTarget (state: State) (action: Action) (targetPos: Pos) =
-    let newPath = dijkstra state.map.dim state.map.tiles state.me.pos targetPos shouldSelect
+    let newPath = astar state.map.dim state.map.tiles state.me.pos targetPos shouldSelect
     match newPath with 
     | None | Some [] ->  
         printfn "No reachable element for %A" action
@@ -153,7 +153,7 @@ let play (key: string) =
         if state.finished then
             let won = state.me.gold = state.maxGold()
             printfn "Game Over, your gold: %i and winner gold: %i" state.me.gold (state.maxGold())
-            won
+            won, initial.showUrl
         else
             let actualAction,actualPath = 
                 if state.me.pos=state.me.spawn then Action.NoAction,[]
