@@ -7,5 +7,4 @@ open Play
 
 [<EntryPoint>]
 let main argv = 
-    Play.play ""
     0 // return an integer exit code

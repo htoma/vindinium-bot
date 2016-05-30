@@ -32,15 +32,6 @@ let linkMove (pos: Pos) (target: Pos) =
     | _,-1 -> Move.East
     | _ -> Move.Stay
 
-let vulnerableHeroNearby (state: State) (neighbors: Pos list) =
-    let heroes = state.heroes
-                    |> List.filter (fun h -> neighbors |> List.contains h.pos)
-                    |> List.sortBy (fun h -> h.life)
-    match heroes with
-    | [] -> false
-    | head::tail ->
-        state.me.life>head.life && head.mines>0
-
 let mineSelector (state: State) (el: MapElement)  = 
             match el with
             | MapElement.GoldHero i -> i<>state.me.id
@@ -50,8 +41,30 @@ let mineSelector (state: State) (el: MapElement)  =
 let tavernSelector (el: MapElement) = 
             el=MapElement.Tavern
 
+let hasTavernNeighbors (pos: Pos) (state: State) =
+    let nb = neighbors state.map.dim state.map.tiles pos
+    nb
+    |> List.exists (fun n -> tavernSelector state.map.tiles.[n.x,n.y])
+
+let vulnerableHeroNearby (state: State) (neighbors: Pos list) =
+    let heroes = state.heroes
+                    |> List.filter (fun h -> neighbors |> List.contains h.pos)
+                    |> List.sortBy (fun h -> h.life)
+    match heroes with
+    | [] -> None
+    | _ ->
+        let iHaveTavern = hasTavernNeighbors state.me.pos state
+        if heroes |> List.exists (fun h -> 
+                                        let hasTavern = hasTavernNeighbors h.pos state
+                                        if (hasTavern && (iHaveTavern |> not)) || h.life>(state.me.life-20) 
+                                        then false
+                                        else true) 
+        then None
+        else
+            Some heroes.Head.pos
+
 let tavernNeighbors (state: State) (neighbors: Pos list) =
-    if state.me.life<80 && state.me.gold>=2 then
+    if state.me.life<90 && state.me.gold>=2 then
         neighbors
         |> List.filter (fun n -> tavernSelector state.map.tiles.[n.x,n.y])
     else []
@@ -111,16 +124,17 @@ let rec moveToMine (state: State) (action: Action) (path: Pos list) =
 
 let getNextMove (state: State) (action: Action) (path: Pos list) = 
     let nb = neighbors state.map.dim state.map.tiles state.me.pos
-    if vulnerableHeroNearby state nb then
+    match (vulnerableHeroNearby state nb) with
+    | Some h ->
         printfn "Found a vulnerable hero near me, I will attack him"
-        Move.Stay,Action.Fight,[]
-    else
+        (linkMove state.me.pos h),Action.Fight,[]
+    | None ->
         match tavernNeighbors state nb with
         | head::tail ->
             printfn "Found a tavern near me, I'm thirsty and I have enough money to drink: %ix%i" head.x head.y
             (linkMove state.me.pos head),Action.Drink,[]
         | [] ->
-            if state.me.life<=30 && state.me.gold>=1 then
+            if state.me.life<=50 && state.me.gold>=2 then
                 moveToTavern state action path
             else 
                match mineToBeTakenNeighbors state nb with
@@ -144,10 +158,8 @@ let play (key: string) =
     printfn "At: %ix%i" initial.me.pos.x initial.me.pos.y
     printfn "TV @ %s" initial.showUrl
 
-    IO.File.AppendAllText(file, sprintf "\r\nURL: %s" initial.showUrl)
-
     let rec playTurn (state: State) (turn: int) (action: Action) (path: Pos list) =
-        printfn "Turn: %i" state.turn
+        printfn "[Turn: %i Health: %i Gold: %i/%i Elo: %i]" state.turn state.me.life state.me.gold (state.maxGold()) state.me.elo
         printfn "Current pos: %ix%i" state.me.pos.x state.me.pos.y
         printfn "Life: %i" state.me.life
         if state.finished then

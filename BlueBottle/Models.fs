@@ -6,6 +6,7 @@ type Pos =
 
 type Hero =
     { id: int 
+      elo: int
       pos: Pos
       spawn: Pos
       life: int

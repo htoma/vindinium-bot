@@ -56,6 +56,7 @@ type Game () =
         let finished = parsed.Game.Finished        
         { finished=finished
           me={ id=parsed.Hero.Id
+               elo=parsed.Hero.Elo
                pos={ x=parsed.Hero.Pos.X; y=parsed.Hero.Pos.Y }
                spawn={ x=parsed.Hero.SpawnPos.X; y=parsed.Hero.SpawnPos.Y } 
                life=parsed.Hero.Life
@@ -63,6 +64,7 @@ type Game () =
                gold=parsed.Hero.Gold }
           heroes=parsed.Game.Heroes 
                  |> Array.map (fun v -> { id=v.Id
+                                          elo=v.Elo
                                           pos={ x=v.Pos.X; y=v.Pos.Y }
                                           spawn={ x=v.SpawnPos.X; y=v.SpawnPos.Y } 
                                           life=v.Life
@@ -73,17 +75,4 @@ type Game () =
           playUrl=parsed.PlayUrl
           showUrl=parsed.ViewUrl
           turn=parsed.Game.Turn }
-        
-    static member ChooseMoveWalkie (state: State) =
-        let moves =
-            [ Move.North
-              Move.East
-              Move.South
-              Move.West ]
-            |> List.map ( fun d -> d, (Game.PosFromMove state.me.pos d))
-            |> List.filter ( fun (_,p) -> (Game.PosValid p state.map) )
-            |> List.map ( fun (d,_) -> d)
-        match moves.Length with
-        | 0 -> Move.Stay
-        | n -> moves.[ Game.Random.Next(0, n)]
 
