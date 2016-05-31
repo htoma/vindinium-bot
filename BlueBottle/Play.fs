@@ -12,10 +12,10 @@ open Game
 let initiateGame (key: string) =
     let random = Random(int DateTime.UtcNow.Ticks)
     let query = 
-        [ "key", key ]
-          //"turns", string Game.Turns
-          //"map", sprintf "m%i" (random.Next(1, 6))]
-          //"map", "m5"]
+        [ "key", key]
+//          "turns", string Game.Turns
+//          //"map", sprintf "m%i" (random.Next(1, 6))]
+//          "map", "m4"]
     makeWebRequest Game.ArenaUrl query
 
 let makeMove (key: string) (url: string) (move: Move) = 
@@ -63,6 +63,18 @@ let vulnerableHeroNearby (state: State) (neighbors: Pos list) =
         else
             Some heroes.Head.pos
 
+let hasDangerNearby (pos: Pos) (state: State) =
+    let strongHeroPos = state.heroes
+                        |> List.filter (fun h -> h.life > state.me.life + 21)
+                        |> List.map (fun h -> h.pos)
+    match strongHeroPos with
+    | [] -> false
+    | _ ->
+        let nb = neighbors state.map.dim state.map.tiles pos
+        nb
+        |> List.exists (fun n -> strongHeroPos
+                                 |> List.exists (fun h -> n=h))
+
 let tavernNeighbors (state: State) (neighbors: Pos list) =
     if state.me.life<90 && state.me.gold>=2 then
         neighbors
@@ -76,51 +88,72 @@ let mineToBeTakenNeighbors (state: State) (neighbors: Pos list) =
 let shouldSelect (el: MapElement) =
     [MapElement.Free;MapElement.Hero] |> List.contains el
 
-let continueMoveToTarget (state: State) (action: Action) (path: Pos list) = 
+let getPossibleStarts (pos: Pos) (state: State) = 
+    neighbors state.map.dim state.map.tiles pos
+    |> List.filter (fun n -> state.map.tiles.[n.x,n.y]=MapElement.Free)
+    |> List.filter (fun n -> hasDangerNearby n state |> not)
+
+let newMoveToTarget (state: State) (action: Action) (elType: MapElement) (selector:MapElement->bool) =
+    let possibleStarts = getPossibleStarts state.me.pos state
+    match possibleStarts with
+    | [] -> 
+        printfn "No possible starts for pos %ix%i" state.me.pos.x state.me.pos.y
+        Move.Stay,Action.NoAction,[]
+    | _ -> 
+        let targetPos = elementsOfType state.map selector
+        let paths = targetPos
+                    |> Seq.map (fun p -> p, astar state.map.dim state.map.tiles state.me.pos p shouldSelect)
+                    |> Seq.filter (fun (p, path) -> path |> Option.isSome)
+                    |> Seq.map (fun (p, path) -> p,path|> Option.get)
+                    |> Seq.sortBy (fun (p,path) -> path.Length)
+                    |> Seq.map (fun (p,_) -> p)
+                    |> List.ofSeq
+        match paths with
+        | [] -> 
+            printfn "Could not found any target of type %A" elType
+            Move.Stay,Action.NoAction,[]
+        | _ ->
+            let closestTargetPos = paths.Head
+            printfn "I chose to move to a %A at: %ix%i" elType closestTargetPos.x closestTargetPos.y            
+            let bestStart = possibleStarts
+                            |> List.minBy (fun p -> manhattanDistance p closestTargetPos)
+            let newPath = astar state.map.dim state.map.tiles bestStart closestTargetPos shouldSelect
+            match newPath with 
+            | None | Some [] ->  
+                printfn "No reachable element for %A" elType
+                Move.Stay,Action.NoAction,[]
+            | Some path ->
+                (linkMove state.me.pos bestStart),action,path
+
+let continueMoveToTarget (state: State) (action: Action) (path: Pos list) (elType: MapElement) (selector:MapElement->bool) = 
     match path with
         | head::tail ->
-            match head with
-            | p when p=state.me.pos -> (linkMove state.me.pos tail.Head),action,tail
-            | _ -> (linkMove state.me.pos head),action,path
+            if hasDangerNearby head state then
+                //need to recompute path
+                newMoveToTarget state action elType selector
+            else
+                match head with
+                | p when p=state.me.pos -> (linkMove state.me.pos tail.Head),action,tail
+                | _ -> (linkMove state.me.pos head),action,path
         | [] -> failwith "No elements in the path to move to"
-
-let newMoveToTarget (state: State) (action: Action) (targetPos: Pos) =
-    let newPath = astar state.map.dim state.map.tiles state.me.pos targetPos shouldSelect
-    match newPath with 
-    | None | Some [] ->  
-        printfn "No reachable element for %A" action
-        Move.Stay,Action.NoAction,[]
-    | Some [head] -> failwith "Element for %A uncaught in neighbours" action        
-    | Some (head::tail) ->
-        (linkMove state.me.pos tail.Head),action,tail
-   
+    
 let moveToTavern (state: State) (action: Action) (path: Pos list) = 
     if action=Action.LookupDrink then
         printfn "Continuing to move to the tavern"
-        continueMoveToTarget state action path
-    else        
-        let tavernPos = closestTarget state.me.pos state.map tavernSelector |> Option.get
-        printfn "I chose to move to a tavern at: %ix%i" tavernPos.x tavernPos.y
-        newMoveToTarget state Action.LookupDrink tavernPos
+        continueMoveToTarget state action path MapElement.Tavern tavernSelector
+    else
+        newMoveToTarget state Action.LookupDrink MapElement.Tavern tavernSelector
 
 let rec moveToMine (state: State) (action: Action) (path: Pos list) = 
     if action=Action.LookupMine then
         let target=(path |> List.rev).Head
         if mineSelector state state.map.tiles.[target.x,target.y] then
             printfn "Continuing to move to the mine"
-            continueMoveToTarget state action path
+            continueMoveToTarget state action path MapElement.GoldF (mineSelector state)
         else
-            printfn "I already this mine %ix%i" target.x target.y
-            moveToMine state Action.NoAction []
+            newMoveToTarget state Action.LookupMine MapElement.GoldF (mineSelector state)
     else        
-        let minePos = closestTarget state.me.pos state.map (mineSelector state)
-        match minePos with
-        | Some v -> 
-            printfn "I chose to move to a mine that is not mine at: %ix%i" v.x v.y
-            newMoveToTarget state Action.LookupMine v
-        | None ->
-            printfn "I got all mines, staying put"
-            Move.Stay,Action.NoAction,[]
+        newMoveToTarget state Action.LookupMine MapElement.GoldF (mineSelector state)
 
 let getNextMove (state: State) (action: Action) (path: Pos list) = 
     let nb = neighbors state.map.dim state.map.tiles state.me.pos
@@ -145,7 +178,7 @@ let getNextMove (state: State) (action: Action) (path: Pos list) =
                     moveToMine state action path
       
 let play (key: string) = 
-    // initiate game
+        // initiate game
     let response = initiateGame key
 
     // get initial state
@@ -164,7 +197,7 @@ let play (key: string) =
         printfn "Life: %i" state.me.life
         if state.finished then
             let won = state.me.gold = state.maxGold()
-            printfn "Game Over, your gold: %i and winner gold: %i" state.me.gold (state.maxGold())
+            printfn "Game Over, your gold: %i and winner's gold: %i" state.me.gold (state.maxGold())
             won, initial.showUrl
         else
             let actualAction,actualPath = 

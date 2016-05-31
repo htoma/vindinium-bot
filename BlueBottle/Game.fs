@@ -64,7 +64,7 @@ type Game () =
                gold=parsed.Hero.Gold }
           heroes=parsed.Game.Heroes 
                  |> Array.map (fun v -> { id=v.Id
-                                          elo=v.Elo
+                                          elo=1
                                           pos={ x=v.Pos.X; y=v.Pos.Y }
                                           spawn={ x=v.SpawnPos.X; y=v.SpawnPos.Y } 
                                           life=v.Life

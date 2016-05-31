@@ -11,6 +11,13 @@ let toString (x:'a) =
     match FSharpValue.GetUnionFields(x, typeof<'a>) with
     | case, _ -> case.Name
 
+let elementsOfType (map: Map) (selector:MapElement->bool) =
+     map.tiles
+    |> Array2D.mapi (fun i j v -> (i,j,v))
+    |> Seq.cast<int*int*MapElement>
+    |> Seq.filter (fun (i,j,v)-> selector v)
+    |> Seq.map (fun (i,j,_) -> {x=i;y=j})
+
 let closestTarget (pos: Pos) (map: Map) (selector:MapElement->bool) =
     map.tiles
     |> Array2D.mapi (fun i j v -> (i,j,v))
