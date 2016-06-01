@@ -9,7 +9,7 @@ open Play
 open System.Threading
 
 let mutable wins = []
-for i in 1..100 do
+for i in 1..20 do
     try
         let (won,url) = Play.play ""
         wins<-(won,url)::wins

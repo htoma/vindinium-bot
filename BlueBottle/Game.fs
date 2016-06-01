@@ -63,6 +63,7 @@ type Game () =
                mines=parsed.Hero.MineCount
                gold=parsed.Hero.Gold }
           heroes=parsed.Game.Heroes 
+                 |> Array.filter (fun h -> h.Id<>parsed.Hero.Id)
                  |> Array.map (fun v -> { id=v.Id
                                           elo=1
                                           pos={ x=v.Pos.X; y=v.Pos.Y }

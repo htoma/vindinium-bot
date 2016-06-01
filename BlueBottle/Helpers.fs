@@ -18,6 +18,10 @@ let elementsOfType (map: Map) (selector:MapElement->bool) =
     |> Seq.filter (fun (i,j,v)-> selector v)
     |> Seq.map (fun (i,j,_) -> {x=i;y=j})
 
+let countElementsOfType (map: Map) (selector:MapElement->bool) =
+    elementsOfType map selector
+    |> Seq.length
+
 let closestTarget (pos: Pos) (map: Map) (selector:MapElement->bool) =
     map.tiles
     |> Array2D.mapi (fun i j v -> (i,j,v))

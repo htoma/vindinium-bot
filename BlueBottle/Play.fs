@@ -12,10 +12,10 @@ open Game
 let initiateGame (key: string) =
     let random = Random(int DateTime.UtcNow.Ticks)
     let query = 
-        [ "key", key]
-//          "turns", string Game.Turns
-//          //"map", sprintf "m%i" (random.Next(1, 6))]
-//          "map", "m4"]
+        [ "key", key ]
+          //"turns", string Game.Turns
+          //"map", sprintf "m%i" (random.Next(1, 6))]
+          //"map", "m1"]
     makeWebRequest Game.ArenaUrl query
 
 let makeMove (key: string) (url: string) (move: Move) = 
@@ -37,6 +37,13 @@ let mineSelector (state: State) (el: MapElement)  =
             | MapElement.GoldHero i -> i<>state.me.id
             | MapElement.GoldF -> true
             | _ -> false
+
+let isGameWonInAdvance (state: State) = 
+    let mines = countElementsOfType state.map (mineSelector state)
+    state.me.mines >= mines &&
+    state.me.gold > (state.heroes
+                     |> List.map (fun h -> h.gold)
+                     |> List.max)
 
 let tavernSelector (el: MapElement) = 
             el=MapElement.Tavern
@@ -76,7 +83,7 @@ let hasDangerNearby (pos: Pos) (state: State) =
                                  |> List.exists (fun h -> n=h))
 
 let tavernNeighbors (state: State) (neighbors: Pos list) =
-    if state.me.life<90 && state.me.gold>=2 then
+    if (isGameWonInAdvance state) || (state.me.life<90 && state.me.gold>=2) then
         neighbors
         |> List.filter (fun n -> tavernSelector state.map.tiles.[n.x,n.y])
     else []
@@ -162,12 +169,15 @@ let getNextMove (state: State) (action: Action) (path: Pos list) =
         printfn "Found a vulnerable hero near me, I will attack him"
         (linkMove state.me.pos h),Action.Fight,[]
     | None ->
+        let isWonInAdvance = isGameWonInAdvance state
         match tavernNeighbors state nb with
         | head::tail ->
             printfn "Found a tavern near me, I'm thirsty and I have enough money to drink: %ix%i" head.x head.y
+            if isWonInAdvance then
+                printfn "I have at least half of all mines, I'm chilling with a drink"
             (linkMove state.me.pos head),Action.Drink,[]
         | [] ->
-            if state.me.life<=50 && state.me.gold>=2 then
+            if isWonInAdvance || (state.me.life<=50 && state.me.gold>=2) then
                 moveToTavern state action path
             else 
                match mineToBeTakenNeighbors state nb with
@@ -192,7 +202,7 @@ let play (key: string) =
     printfn "TV @ %s" initial.showUrl
 
     let rec playTurn (state: State) (turn: int) (action: Action) (path: Pos list) =
-        printfn "[Turn: %i Health: %i Gold: %i/%i Elo: %i]" state.turn state.me.life state.me.gold (state.maxGold()) state.me.elo
+        printfn "[Turn: %i Health: %i Gold: %i/%i Mines: %i Elo: %i]" state.turn state.me.life state.me.gold (state.maxGold()) state.me.mines state.me.elo
         printfn "Current pos: %ix%i" state.me.pos.x state.me.pos.y
         printfn "Life: %i" state.me.life
         if state.finished then
