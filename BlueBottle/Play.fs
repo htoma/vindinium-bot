@@ -138,7 +138,7 @@ let continueMoveToTarget (state: State) (action: Action) (path: Pos list) (elTyp
     match path with
         | head::tail ->
             if hasDangerNearby head state then
-                //need to recompute path
+                printfn "Need to recompute path"
                 newMoveToTarget state action elType selector
             else
                 match head with
@@ -151,6 +151,7 @@ let moveToTavern (state: State) (action: Action) (path: Pos list) =
         printfn "Continuing to move to the tavern"
         continueMoveToTarget state action path MapElement.Tavern tavernSelector
     else
+        printfn "Move to tavern interrupted due to another action: %A" action
         newMoveToTarget state Action.LookupDrink MapElement.Tavern tavernSelector
 
 let rec moveToMine (state: State) (action: Action) (path: Pos list) = 
@@ -160,8 +161,10 @@ let rec moveToMine (state: State) (action: Action) (path: Pos list) =
             printfn "Continuing to move to the mine"
             continueMoveToTarget state action path MapElement.GoldF (mineSelector state)
         else
+            printfn "Move to mine interrupted, no good mine found"
             newMoveToTarget state Action.LookupMine MapElement.GoldF (mineSelector state)
-    else        
+    else
+        printfn "Move to mine interrupted due to another action: %A" action
         newMoveToTarget state Action.LookupMine MapElement.GoldF (mineSelector state)
 
 let getNextMove (state: State) (action: Action) (path: Pos list) = 
