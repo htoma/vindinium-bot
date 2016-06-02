@@ -15,7 +15,7 @@ let initiateGame (key: string) =
         [ "key", key ]
           //"turns", string Game.Turns
           //"map", sprintf "m%i" (random.Next(1, 6))]
-          //"map", "m1"]
+          //"map", "m5"]
     makeWebRequest Game.ArenaUrl query
 
 let makeMove (key: string) (url: string) (move: Move) = 
@@ -72,15 +72,17 @@ let vulnerableHeroNearby (state: State) (neighbors: Pos list) =
 
 let hasDangerNearby (pos: Pos) (state: State) =
     let strongHeroPos = state.heroes
-                        |> List.filter (fun h -> h.life > state.me.life + 21)
+                        |> List.filter (fun h -> h.life + 2 > state.me.life)
                         |> List.map (fun h -> h.pos)
     match strongHeroPos with
     | [] -> false
     | _ ->
         let nb = neighbors state.map.dim state.map.tiles pos
-        nb
-        |> List.exists (fun n -> strongHeroPos
-                                 |> List.exists (fun h -> n=h))
+        let res = nb
+                  |> List.exists (fun n -> strongHeroPos
+                                          |> List.exists (fun h -> n=h))
+        if res then printfn "There's danger nearby"
+        res
 
 let tavernNeighbors (state: State) (neighbors: Pos list) =
     if (isGameWonInAdvance state) || (state.me.life<90 && state.me.gold>=2) then
@@ -206,8 +208,8 @@ let play (key: string) =
         printfn "Current pos: %ix%i" state.me.pos.x state.me.pos.y
         printfn "Life: %i" state.me.life
         if state.finished then
-            let won = state.me.gold = state.maxGold()
-            printfn "Game Over, your gold: %i and winner's gold: %i" state.me.gold (state.maxGold())
+            let won = state.me.gold >= state.maxGold()
+            printfn "Game Over, your gold: %i and others' gold: %i" state.me.gold (state.maxGold())
             won, initial.showUrl
         else
             let actualAction,actualPath = 
