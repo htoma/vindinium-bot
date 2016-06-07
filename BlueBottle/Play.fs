@@ -53,22 +53,45 @@ let hasTavernNeighbors (pos: Pos) (state: State) =
     nb
     |> List.exists (fun n -> tavernSelector state.map.tiles.[n.x,n.y])
 
-let vulnerableHeroNearby (state: State) (neighbors: Pos list) =
+let canStepWithoutFear (state: State) =
+    let nb = neighbors state.map.dim state.map.tiles state.me.pos
+
     let heroes = state.heroes
-                    |> List.filter (fun h -> neighbors |> List.contains h.pos)
-                    |> List.sortBy (fun h -> h.life)
+                 |> List.filter (fun h -> nb |> List.contains h.pos)
+
     match heroes with
-    | [] -> None
+    | [] -> true
     | _ ->
         let iHaveTavern = hasTavernNeighbors state.me.pos state
         if heroes |> List.exists (fun h -> 
                                         let hasTavern = hasTavernNeighbors h.pos state
-                                        if (hasTavern && (iHaveTavern |> not)) || h.life>(state.me.life-20) 
+                                        if (hasTavern && (iHaveTavern |> not)) || h.life>=state.me.life+Game.HitPower
                                         then false
                                         else true) 
-        then None
+        then false
         else
-            Some heroes.Head.pos
+            true
+
+
+let vulnerableHeroNearby (state: State) =
+    let nb = neighbors state.map.dim state.map.tiles state.me.pos
+    state.heroes
+    |> List.exists (fun h -> nb |> List.contains h.pos && h.mines > 0)
+
+let computeMyHittingPower (state: State) =
+    if hasTavernNeighbors state.me.pos state 
+    then state.me.life + Game.TavernRefresh
+    else state.me.life
+
+let computeOtherTotalHittingPower (state: State) =
+    //compute total neighbour power
+    let nb = neighbors state.map.dim state.map.tiles state.me.pos
+    let hnb = state.heroes
+              |> List.exists (fun h -> nb |> List.contains h.pos && h.life > Game.HitPower)
+    let hnbPower = (hnb |> List.length) * Game.HitPower
+
+    //compute 2 steps away hero power
+
 
 let hasDangerNearby (pos: Pos) (state: State) =
     let strongHeroPos = state.heroes

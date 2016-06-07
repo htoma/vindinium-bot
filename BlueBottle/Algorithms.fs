@@ -23,6 +23,17 @@ let neighbors (dim: int) (matrix: 'a[,]) (pos: Pos) =
       {pos with y=pos.y-1} ]
     |> List.filter (fun p -> p.x>=0 && p.x<dim && p.y>=0 && p.y<dim)
 
+let neighbors2StepAway (dim: int) (matrix: 'a[,]) (pos: Pos) =
+    [ {pos with x=pos.x-2}
+      {pos with x=pos.x-1;y=pos.y-2}
+      {pos with x=pos.x-1;y=pos.y+2}
+      {pos with y=pos.y-2}
+      {pos with y=pos.y+2}
+      {pos with x=pos.x+1;y=pos.y-2}
+      {pos with x=pos.x+1;y=pos.y+2}
+      {pos with x=pos.x+2} ]
+    |> List.filter (fun p -> p.x>=0 && p.x<dim && p.y>=0 && p.y<dim)
+
 let manhattanDistance (start: Pos) (target: Pos) = 
     Math.Abs(start.x-target.x) + Math.Abs(start.y-target.y)
 

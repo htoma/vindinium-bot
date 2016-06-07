@@ -15,6 +15,8 @@ type Game () =
     static member TrainingUrl = @"http://vindinium.org/api/training"
     static member ArenaUrl = @"http://vindinium.org/api/arena"
     static member Turns = 100
+    static member HitPower = 20
+    static member TavernRefresh = 50
     static member private ParseLine (dim: int) (line: char[]) =
         line
         |> Seq.splitInto dim
