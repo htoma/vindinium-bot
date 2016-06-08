@@ -56,19 +56,19 @@ let hasTavernNeighbors (pos: Pos) (state: State) =
     nb
     |> List.exists (fun n -> tavernSelector state.map.tiles.[n.x,n.y])
 
-let vulnerableHeroNearby (state: State) =
-    let nb = neighbors state.map.dim state.map.tiles state.me.pos
+let vulnerableHeroNearby (pos: Pos) (state: State) =
+    let nb = neighbors state.map.dim state.map.tiles pos
     state.heroes
     |> List.exists (fun h -> nb |> List.contains h.pos && h.mines > 0)
 
-let computeMyHittingPower (state: State) =
-    if hasTavernNeighbors state.me.pos state 
+let computeMyHittingPower (pos: Pos) (state: State) =
+    if hasTavernNeighbors pos state 
     then state.me.life + Game.TavernRefresh
     else state.me.life
 
-let computeOtherTotalHittingPower (state: State) =
+let computeOtherTotalHittingPower (pos: Pos) (state: State) =
     //compute total neighbour power
-    let nb = neighbors state.map.dim state.map.tiles state.me.pos
+    let nb = neighbors state.map.dim state.map.tiles pos
     let hnb = state.heroes
               |> List.filter (fun h -> nb |> List.contains h.pos && h.life > Game.HitPower)
     printfn "I have %i heroes that I won't kill near me" (hnb |> List.length)
@@ -77,26 +77,29 @@ let computeOtherTotalHittingPower (state: State) =
     printfn "I have %i heroes near me that have taverns near them" (hWithTavern |> List.length)
     let hnbPower = (hnb |> List.length) * Game.HitPower + (hWithTavern |> List.length) * Game.TavernRefresh
 
-    //todo: compute 2 steps away hero power
-    hnbPower
+    //compute 2 steps away hero power
+    let nbTwoStep = neighbors2StepAway state.map.dim state.map.tiles pos
+    let hnbTwoStep = state.heroes
+                     |> List.filter (fun h -> nbTwoStep |> List.contains h.pos)
+    printfn "I have %i heroes at two steps away and they are ready to attack me" (hnbTwoStep |> List.length)
+    let hWithTavernTwoStep = hnbTwoStep
+                            |> List.filter (fun h -> hasTavernNeighbors h.pos state)
+    printfn "I have %i heroes at two steps that have taverns near them" (hWithTavernTwoStep |> List.length)
+    let hnbPowerTwoStep =  (hnbTwoStep |> List.length) * Game.HitPower + (hWithTavernTwoStep |> List.length) * Game.TavernRefresh
 
-let shouldStay (state: State) =
-    (vulnerableHeroNearby state) &&
-        (computeMyHittingPower state) >= (computeOtherTotalHittingPower state)
+    hnbPower + hnbPowerTwoStep
 
-let hasDangerNearby (pos: Pos) (state: State) =
-    let strongHeroPos = state.heroes
-                        |> List.filter (fun h -> h.life + 2 > state.me.life)
-                        |> List.map (fun h -> h.pos)
-    match strongHeroPos with
-    | [] -> false
-    | _ ->
-        let nb = neighbors state.map.dim state.map.tiles pos
-        let res = nb
-                  |> List.exists (fun n -> strongHeroPos
-                                          |> List.exists (fun h -> n=h))
-        if res then printfn "There's danger nearby"
-        res
+let isSafePos (pos: Pos) (state: State) =
+    (computeMyHittingPower pos state) >= (computeOtherTotalHittingPower pos state)
+
+let isValidFightingPos (pos: Pos) (state: State) =
+    (vulnerableHeroNearby pos state) &&
+        (isSafePos pos state)
+
+let shouldAttack (state: State) =
+    let nb = neighbors state.map.dim state.map.tiles state.me.pos
+    nb
+    |> List.tryPick (fun p -> if isValidFightingPos p state then Some p else None)
 
 let tavernNeighbors (state: State) (neighbors: Pos list) =
     if state.me.gold>=2 then
@@ -113,8 +116,8 @@ let shouldSelect (el: MapElement) =
 
 let getPossibleStarts (pos: Pos) (state: State) = 
     neighbors state.map.dim state.map.tiles pos
-    |> List.filter (fun n -> state.map.tiles.[n.x,n.y]=MapElement.Free)
-    |> List.filter (fun n -> hasDangerNearby n state |> not)
+    |> List.filter (fun p -> state.map.tiles.[p.x,p.y]=MapElement.Free)
+    |> List.filter (fun pn -> isSafePos pos state)
 
 let newMoveToTarget (state: State) (action: Action) (elType: MapElement) (selector:MapElement->bool) =
     let possibleStarts = getPossibleStarts state.me.pos state
@@ -151,8 +154,8 @@ let newMoveToTarget (state: State) (action: Action) (elType: MapElement) (select
 let continueMoveToTarget (state: State) (action: Action) (path: Pos list) (elType: MapElement) (selector:MapElement->bool) = 
     match path with
         | head::tail ->
-            if hasDangerNearby head state then
-                printfn "Need to recompute path"
+            if (isSafePos head state |> not) then
+                printfn "Need to recompute path because continuing is not safe"
                 newMoveToTarget state action elType selector
             else
                 match head with
@@ -169,6 +172,7 @@ let moveToTavern (state: State) (action: Action) (path: Pos list) =
         newMoveToTarget state Action.LookupDrink MapElement.Tavern tavernSelector
 
 let rec moveToMine (state: State) (action: Action) (path: Pos list) = 
+    printfn "Move to mine"
     if action=Action.LookupMine then
         let target=(path |> List.rev).Head
         if mineSelector state state.map.tiles.[target.x,target.y] then
@@ -178,7 +182,7 @@ let rec moveToMine (state: State) (action: Action) (path: Pos list) =
             printfn "Move to mine interrupted, no good mine found"
             newMoveToTarget state Action.LookupMine MapElement.GoldF (mineSelector state)
     else
-        printfn "Move to mine interrupted due to another action: %A" action
+        printfn "I have to search a new mine, previous action was: %A" action
         newMoveToTarget state Action.LookupMine MapElement.GoldF (mineSelector state)
 
 let mine (state: State) (action: Action) (path: Pos list) = 
@@ -191,29 +195,33 @@ let mine (state: State) (action: Action) (path: Pos list) =
         moveToMine state action path
 
 let getNextMove (state: State) (action: Action) (path: Pos list) = 
-    if shouldStay state then
+    if isValidFightingPos state.me.pos state then
         printfn "I'll stay as I may win a battle near me"
         Move.Stay,Action.Fight,[]
     else
-        let nb = neighbors state.map.dim state.map.tiles state.me.pos
-        let isWonInAdvance = isGameWonInAdvance state
-        if hasTavernNeighbors state.me.pos state then
-            if needToRefresh state then
-                match tavernNeighbors state nb with
-                | head::tail ->
-                    printfn "Found a tavern near me, I'm thirsty and I have enough money to drink: %ix%i" head.x head.y
-                    (linkMove state.me.pos head),Action.Drink,[]
-                | [] -> failwith "No tavern near me"
-            else 
-                if isWonInAdvance then
-                    Move.Stay,Action.NoAction,[]
-                else
+        match shouldAttack state with
+        | Some pos ->
+            (linkMove state.me.pos pos), Action.Fight,[]
+        | None -> 
+            let nb = neighbors state.map.dim state.map.tiles state.me.pos
+            let isWonInAdvance = isGameWonInAdvance state
+            if hasTavernNeighbors state.me.pos state then
+                if needToRefresh state then
+                    match tavernNeighbors state nb with
+                    | head::tail ->
+                        printfn "Found a tavern near me, I'm thirsty and I have enough money to drink: %ix%i" head.x head.y
+                        (linkMove state.me.pos head),Action.Drink,[]
+                    | [] -> failwith "No tavern near me"
+                else 
+                    if isWonInAdvance then
+                        Move.Stay,Action.NoAction,[]
+                    else
+                        mine state action path
+            else
+                if isWonInAdvance || (needToRefresh state) then
+                    moveToTavern state action path
+                else 
                     mine state action path
-        else
-            if isWonInAdvance || (needToRefresh state) then
-                moveToTavern state action path
-            else 
-                mine state action path
       
 let play (key: string) = 
         // initiate game
